@@ -1,0 +1,112 @@
+{
+  "_hinweis": "Kopie als config.json anlegen und Zugangsdaten eintragen. config.json bleibt lokal (siehe .gitignore).",
+  "shop": {
+    "basis": "https://likoer24.de",
+    "timeoutMs": 25000,
+    "langsamMs": 6000,
+    "lieferzeitMuster": "\\d+\\s*[–-]\\s*\\d+\\s*Werktag"
+  },
+  "dashboardConfig": [
+    "~/likoer24-dashboard/config.json",
+    "~/Documents/Likoer24/likoer24-dashboard/config.json"
+  ],
+  "woocommerce": {
+    "url": "",
+    "ck": "",
+    "cs": ""
+  },
+  "ftp": {
+    "host": "likoer24.de",
+    "user": "",
+    "pass": "",
+    "docroot": "/httpdocs",
+    "logPfad": "/logs/",
+    "timeoutSek": 40
+  },
+  "schwellen": {
+    "mindestmenge": 25,
+    "sofortKnapp": 400,
+    "stilleWarnStunden": 36,
+    "stilleAlarmStunden": 72,
+    "haengendStunden": 48,
+    "pdfKarenzStunden": 1,
+    "versandTage": 5,
+    "failedWarn": 3,
+    "logFensterStunden": 24,
+    "logBytes": 400000,
+    "uploadsWarn": 4000,
+    "stilleWarnP": 0.1,
+    "stilleAlarmP": 0.05
+  },
+  "funnel": {
+    "_hinweis": "Warenkorb-Anlagen (Upload-Ordner, Vergleich 2–7 Tage zurück) + Schrittquoten (Analytics, Vergleich 28 Tage zurück) gegen die letzten 48 h; nach einem Deploy zusätzlich seit-Deploy-Vergleich. Der Vergleichszeitraum enthält auch schlechte Tage — ein Einbruch fällt trotzdem auf, weil er gegen den Schnitt gerechnet wird.",
+    "fensterStunden": 48,
+    "basisTage": 5,
+    "basisTageQuoten": 28,
+    "mindestSessions": 8,
+    "mindestQuote": 0.08,
+    "warnP": 0.12,
+    "alarmP": 0.03,
+    "mindestProTag": 1,
+    "warnAnteil": 0.35,
+    "alarmWahrscheinlichkeit": 0.05,
+    "deployAbStunden": 6,
+    "deployFensterStunden": 96,
+    "deployQuotenAbStunden": 12,
+    "deployMindestSessions": 6,
+    "deployErwartetMin": 2
+  },
+  "klickpfad": {
+    "_hinweis": "Echter Chromium-Durchlauf im Handy-Viewport bis zur Bestellübersicht (kauft nichts). Braucht /usr/bin/chromium (Pi) oder Google Chrome (Mac).",
+    "aktiv": true,
+    "breite": 390,
+    "hoehe": 740,
+    "hoehen": [
+      640,
+      560
+    ],
+    "zoom": 1.5,
+    "zeitlimitSek": 120
+  },
+  "seo": {
+    "seiten": [
+      "/",
+      "/konfigurator/",
+      "/so-gehts/",
+      "/hochzeit/",
+      "/jga/",
+      "/geburtstag/",
+      "/taufe/",
+      "/firmengeschenke/",
+      "/weihnachten/",
+      "/vereine/",
+      "/sorten/",
+      "/ueber-uns/"
+    ],
+    "schemaTypen": [
+      "Product",
+      "HowTo",
+      "BreadcrumbList",
+      "Organization"
+    ],
+    "weiterleitungen": [
+      {
+        "von": "/produkt/erdbeerlimes/",
+        "nach": "/konfigurator/"
+      },
+      {
+        "von": "/product-category/likoere/",
+        "nach": "/konfigurator/"
+      },
+      {
+        "von": "/startseite-3/",
+        "nach": "/"
+      }
+    ]
+  },
+  "analytics": {
+    "base": "https://likoer24.de/wp-json/likoer24-analytics/v1",
+    "user": "",
+    "appPassword": ""
+  }
+}
