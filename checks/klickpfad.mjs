@@ -73,7 +73,12 @@ const JS_TREFFER = `(function (sel, mussText, deaktiviertOk, scrollen) {
     return { ok: false, grund: 'außerhalb des sichtbaren Bereichs (Mitte bei ' + Math.round(cy) + ' px, sichtbar bis ' + Math.round(oy + vh) + ' px)', x: cx, y: cy, kbd };
   }
   const hit = document.elementFromPoint(cx, cy);
-  if (!hit || !(hit === el || el.contains(hit))) {
+  // Deaktivierter Haupt-CTA (Konfigurator ≥ 1.0.210): der Knopf hat dann pointer-events:none,
+  // der Tipp landet ABSICHTLICH auf seinem Eltern-Element (.cfg-actions / .cfg-totalbar),
+  // das ihn als „blockiert" zählt und erklärt. Das ist keine Verdeckung — alles andere
+  // (z. B. das Consent-Schloss über der CTA-Ecke) bleibt eine.
+  const tapFaenger = !!el.disabled && !!hit && hit === el.parentElement;
+  if (!hit || !(hit === el || el.contains(hit) || tapFaenger)) {
     return { ok: false, grund: 'verdeckt von ' + (hit ? hit.tagName.toLowerCase() + (hit.className ? '.' + String(hit.className).split(' ')[0] : '') : 'nichts'), x: cx, y: cy, kbd };
   }
   return { ok: true, x: cx, y: cy, deaktiviert: !!el.disabled, text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 40), kbd };
