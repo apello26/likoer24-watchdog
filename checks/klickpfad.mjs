@@ -135,6 +135,12 @@ async function betaetigen(seite, ziel, fertig, opt = {}) {
   return null;
 }
 
+
+// Stil-Karte für den Test: bevorzugt „Klassisch" über data-tpl-id (Konfigurator ≥ 1.1.0 — die erste
+// Karte ist dort die DIY-Spur „Fertiges Design hochladen", die ohne Upload nicht weiterkommt).
+// Ältere Stände ohne data-tpl-id: erste Karte mit aria-label „Etikett-Stil …".
+const JS_STIL_SEL = `(document.querySelector('button[data-tpl-id="wed-classic"]') ? 'button[data-tpl-id="wed-classic"]' : 'button[aria-label^="Etikett-Stil"]')`;
+
 class Abbruch extends Error {}
 
 /** Der Handy-Weg: Stil → Sorten/Menge → Text → Druckfreigabe → Bestellübersicht. */
@@ -162,9 +168,10 @@ async function handyPfad(browser, url, cfg) {
     }
 
     // ---- Schritt 1: Stil wählen -------------------------------------------------
-    const stil = await trefferInhalt(seite, 'button[aria-label^="Etikett-Stil"]');
+    const stilSel = await seite.eval(JS_STIL_SEL);
+    const stil = await trefferInhalt(seite, stilSel);
     merke(stil.ok, 'Stil-Kachel tippbar', stil.grund);
-    const w1 = await betaetigen(seite, stil, `document.querySelectorAll('.cfg-sortrow').length > 0`, { sel: 'button[aria-label^="Etikett-Stil"]', ms: 5000 });
+    const w1 = await betaetigen(seite, stil, `document.querySelectorAll('.cfg-sortrow').length > 0`, { sel: stilSel, ms: 5000 });
     if (!w1) {
       // Kein Auto-Weiter? Dann über den regulären Knopf.
       const weiter = await treffer(seite, 'button', 'Weiter zu Sorte');
@@ -187,7 +194,7 @@ async function handyPfad(browser, url, cfg) {
     // Der Weiter-Knopf: sichtbar und tippbar — und zwar auch, wenn der Viewport
     // kleiner wird (Browserleisten, eingeblendete Toolbar) oder gezoomt ist.
     const pruefeCta = async (lage) => {
-      const t = await treffer(seite, '.cfg-actions__cta', 'Weiter zur Personalisierung');
+      const t = await treffer(seite, '.cfg-actions__cta', 'Weiter zur Personalisierung|Weiter zu Foto');
       merke(t.ok && !t.kbd, `Weiter-Knopf ${lage}`, t.ok ? (t.kbd ? 'Tastatur-Modus aktiv ohne Textfeld (data-lk-kbd)' : '') : t.grund);
       return t;
     };
@@ -207,7 +214,7 @@ async function handyPfad(browser, url, cfg) {
     await pause(500);
     cta = await pruefeCta('nach dem Zoom');
 
-    const w3 = await betaetigen(seite, cta, `!!document.querySelector('.cfg-form--controls')`, { sel: '.cfg-actions__cta', text: 'Weiter zur Personalisierung', ms: 5000 });
+    const w3 = await betaetigen(seite, cta, `!!document.querySelector('.cfg-form--controls')`, { sel: '.cfg-actions__cta', text: 'Weiter zur Personalisierung|Weiter zu Foto', ms: 5000 });
     merke(!!w3, 'Schritt 3 erreicht', w3 ? `per ${w3}` : 'Personalisierung erscheint nicht');
     tippWeg.push(w3);
 
@@ -235,11 +242,14 @@ async function handyPfad(browser, url, cfg) {
     merke(!!w4, 'Druckfreigabe geöffnet', w4 ? `per ${w4}` : 'Dialog erscheint nicht');
     tippWeg.push(w4);
 
-    // Ohne Foto weiter zur Bestellübersicht — nur bis zum Warenkorb-Knopf, nicht hinein.
+    // Ohne Foto weiter zur Bestellübersicht (Zwei-Schritte-Ablauf bis 1.1.0) — im Prüf-Screen ab
+    // 1.1.0 steht der Bestell-Knopf direkt da („Passt – in den Warenkorb" bzw. „Passt – zur Kasse").
+    // Nur bis zum Knopf, nicht hinein.
     if (await jsKlick(seite, '.cfg-proof button', 'ohne Foto weiter')) await pause(1000);
-    const korb = await seite.warten(`${JS_TREFFER}('.cfg-proof button', 'In den Warenkorb', false).ok`, 6000, 250);
-    const korbT = await treffer(seite, '.cfg-proof button', 'In den Warenkorb');
-    merke(!!korb && korbT.ok, 'Bestellübersicht mit Warenkorb-Knopf', korbT.grund || '');
+    const ZIEL = 'In den Warenkorb|zur Kasse';
+    const korb = await seite.warten(`${JS_TREFFER}('.cfg-proof button', '${ZIEL}', false).ok`, 6000, 250);
+    const korbT = await treffer(seite, '.cfg-proof button', ZIEL);
+    merke(!!korb && korbT.ok, 'Prüf-Screen/Bestellübersicht mit Bestell-Knopf', korbT.grund || '');
   } finally {
     await seite.schliessen().catch(() => {});
   }
@@ -259,9 +269,10 @@ async function desktopPfad(browser, url, cfg) {
       await pause(500);
       await seite.warten(`!!document.querySelector('button[aria-label^="Etikett-Stil"]')`, 15000);
     }
-    const stil = await trefferInhalt(seite, 'button[aria-label^="Etikett-Stil"]');
+    const stilSel = await seite.eval(JS_STIL_SEL);
+    const stil = await trefferInhalt(seite, stilSel);
     merke(stil.ok, 'Stil-Kachel klickbar', stil.grund);
-    let w = await betaetigen(seite, stil, `document.querySelectorAll('.cfg-sortrow').length > 0`, { mobil: false, sel: 'button[aria-label^="Etikett-Stil"]' });
+    let w = await betaetigen(seite, stil, `document.querySelectorAll('.cfg-sortrow').length > 0`, { mobil: false, sel: stilSel });
     if (!w) {
       const weiter = await treffer(seite, 'button', 'Weiter zu Sorte');
       merke(weiter.ok, 'Weiter zu Sorte & Menge', weiter.grund);
