@@ -17,6 +17,54 @@ import { befund, holenWeich, bootVon, eur } from '../lib/kern.mjs';
 
 export const name = 'Konfigurator';
 
+/**
+ * Etikett-Schriften (seit Konfigurator 1.0.222 selbst gehostet statt Google Fonts).
+ *
+ * Fehlt nach einem Upload auch nur eine Schriftdatei, rendern Vorschau UND Druck-Snapshot
+ * still in einer Ersatzschrift — keine Fehlermeldung, die Bestellung läuft durch. Den
+ * hinted/-Satz (Windows, Linux, ChromeOS) lädt der Klickpfad nie, weil er mit Android- und
+ * Mac-Kennung surft — darum hier beide Ordner direkt: fonts.css lesen, jede darin genannte
+ * woff2 per HEAD (HTTP 200, font/woff2, nicht leer). Solange live noch Google Fonts lädt
+ * (vor 1.0.222), nur ein Hinweis — so darf dieser Check schon vor dem Deploy auf den Pi.
+ * Vollständiger Byte-Vergleich nach einem Deploy: dev-tools/_fonts-live-check.mjs im Plugin.
+ */
+export async function schriftenPruefen(html, basis, timeoutMs) {
+  const titel = 'Etikett-Schriften';
+  if (/fonts\.googleapis\.com\/css2/.test(html)) {
+    return befund('schriften', titel, 'info', 'kommen noch von Google Fonts (Konfigurator vor 1.0.222)');
+  }
+  if (!/<link[^>]+id=['"]lk24-fonts-css['"]/.test(html)) {
+    return befund('schriften', titel, 'alarm', 'Schrift-Stylesheet lk24-fonts fehlt im Konfigurator — Etiketten rendern in Ersatzschrift');
+  }
+  const ordner = `${basis}/wp-content/plugins/likoer24-konfigurator/assets/fonts/web/`;
+  const fehler = [];
+  let dateien = 0;
+  for (const dir of ['', 'hinted/']) {
+    const css = await holenWeich(`${ordner}${dir}fonts.css`, { timeoutMs });
+    const namen = css.status === 200
+      ? [...new Set([...css.text.matchAll(/url\(([^)"']+\.woff2)\)/g)].map((m) => m[1]))]
+      : [];
+    if (!namen.length) {
+      fehler.push(`web/${dir}fonts.css: ${css.status ? `HTTP ${css.status}` : css.fehler}${css.status === 200 ? ' ohne Schriftdateien' : ''}`);
+      continue;
+    }
+    for (const n of namen) {
+      dateien++;
+      const r = await holenWeich(`${ordner}${dir}${n}`, { method: 'HEAD', kopfOnly: true, timeoutMs });
+      const typ = (r.headers && r.headers.get('content-type')) || '';
+      const laenge = r.headers ? r.headers.get('content-length') : null; // nginx liefert sie; fehlt sie, nicht werten
+      if (r.status !== 200 || !/^font\/woff2/.test(typ) || (laenge !== null && Number(laenge) < 1000)) {
+        fehler.push(`web/${dir}${n}: ${r.status ? `HTTP ${r.status}` : r.fehler}${r.status === 200 ? ` ${typ || 'ohne Typ'}, ${laenge} Bytes` : ''}`);
+      }
+    }
+  }
+  return fehler.length
+    ? befund('schriften', titel, 'alarm',
+        `${fehler.length} Problem(e) mit den Schriftdateien — betroffene Etiketten drucken in Ersatzschrift (hinted/ = Windows/Linux/ChromeOS). Upload von assets/fonts/web/ prüfen (httpdocs/!)`,
+        fehler)
+    : befund('schriften', titel, 'ok', `web/ und web/hinted/ vollständig (${dateien} Schriftdateien)`);
+}
+
 export async function run(ctx) {
   const out = [];
   const basis = ctx.cfg.shop.basis;
@@ -73,6 +121,7 @@ export async function run(ctx) {
       out.push(befund(`asset.${datei}`, datei, 'ok', `${Math.round(r.groesse / 1024)} KB, HTTP 200`));
     }
   }
+  out.push(await schriftenPruefen(html, basis, ctx.cfg.shop.timeoutMs));
 
   // ---- Sorten ---------------------------------------------------------------
   const sorten = Array.isArray(boot.sorten) ? boot.sorten : [];

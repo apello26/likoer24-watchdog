@@ -11,6 +11,7 @@
  *   node watchdog.mjs                  vollständiger Lauf, meldet Änderungen
  *   node watchdog.mjs --kein-push      ohne Telegram (zum Ausprobieren)
  *   node watchdog.mjs --nur=server     nur eine Gruppe
+ *   node watchdog.mjs --nur=consent    nur der Consent-Leck-Test (Browser)
  *   node watchdog.mjs --json           nur das Ergebnis als JSON auf stdout
  */
 
@@ -46,6 +47,9 @@ const GRUPPEN = [
   { id: 'seo',            modul: './checks/seo.mjs' },
   // Zuletzt, weil er einen echten Browser startet und am längsten braucht.
   { id: 'klickpfad',      modul: './checks/klickpfad.mjs' },
+  // Ebenfalls Browser: Tracker ohne Einwilligung, „Ablehnen", Gegenprobe mit „Ok",
+  // Teil-Einwilligungen (nur Statistik / nur Marketing).
+  { id: 'consent',        modul: './checks/consent-leck.mjs' },
 ];
 
 function jsonLesen(pfad, standard = null) {
