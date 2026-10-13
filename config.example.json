@@ -80,7 +80,7 @@
       "/firmengeschenke/",
       "/weihnachten/",
       "/vereine/",
-      "/sorten/",
+      "/likoersorten/",
       "/ueber-uns/"
     ],
     "schemaTypen": [
@@ -91,12 +91,12 @@
     ],
     "weiterleitungen": [
       {
-        "von": "/produkt/erdbeerlimes/",
-        "nach": "/konfigurator/"
+        "von": "/sorten/",
+        "nach": "/likoersorten/"
       },
       {
         "von": "/product-category/likoere/",
-        "nach": "/konfigurator/"
+        "nach": "/likoersorten/"
       },
       {
         "von": "/startseite-3/",

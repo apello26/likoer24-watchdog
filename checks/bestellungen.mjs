@@ -94,7 +94,12 @@ export async function run(ctx) {
   // Karenzzeit, weil das PDF erst nach der Zahlung erzeugt wird und das ein
   // paar Minuten dauern darf.
   const reif = echte.filter((o) => BEZAHLT.includes(o.status) && o.date_paid && stundenSeit(o.date_paid) > (s.pdfKarenzStunden ?? 1));
-  const ohnePdfRoh = reif.filter((o) => !gesetzt(o, '_lk24_pdf_generated_at'));
+  // Etikett-Befunde (PDF, Snapshot, Farb-Drift) zählen nur, solange noch
+  // gedruckt werden kann. Eine versandte Bestellung blieb sonst bis zu zwei
+  // Monate auf der Liste und hielt den Gesamtstatus dauerhaft rot (#19391 stand
+  // 29 Tage im Alarm und hätte jeden echten PDF-Ausfall verdeckt).
+  const druckOffen = reif.filter((o) => o.status === 'processing' && !gesetzt(o, '_lk24_versand_uebergeben_at'));
+  const ohnePdfRoh = druckOffen.filter((o) => !gesetzt(o, '_lk24_pdf_generated_at'));
 
   // Von Hand im Backend angelegte Bestellungen (Großkunden, Angebote) sind nie
   // durch den Konfigurator gelaufen und haben deshalb gar keine Etikettdaten —
@@ -104,7 +109,9 @@ export async function run(ctx) {
   // eine Konfiguration daranhängt — dann wäre das fehlende PDF ein echter Fehler.
   const ohnePdf = [], sonder = [];
   for (const o of ohnePdfRoh) {
-    if (o.created_via !== 'admin') { ohnePdf.push(o); continue; }
+    // Nur Shop-Kasse ist sicher Konfigurator. Backend, Klon (created_via leer)
+    // und REST laufen durch die Konfig-Prüfung unten.
+    if (o.created_via === 'checkout') { ohnePdf.push(o); continue; }
     let hatKonfig = false;
     try {
       const voll = await wcHolen(ctx.cfg, `/orders/${o.id}?_fields=line_items`);
@@ -117,7 +124,7 @@ export async function run(ctx) {
     ? befund('pdf', 'Druck-PDF', 'alarm',
         `${ohnePdf.length} Konfigurator-Bestellung(en) ohne Druck-PDF: ${idListe(ohnePdf)}`,
         ohnePdf.map((o) => ({ id: o.id, nummer: o.number, bezahltVorH: Math.round(stundenSeit(o.date_paid)) })))
-    : befund('pdf', 'Druck-PDF', 'ok', `alle ${reif.length - sonder.length} Konfigurator-Bestellungen haben ihr PDF`));
+    : befund('pdf', 'Druck-PDF', 'ok', `alle ${druckOffen.length - sonder.length} offenen Konfigurator-Bestellungen haben ihr PDF`));
 
   if (sonder.length) {
     out.push(befund('sonder', 'Sonderbestellungen', 'info',
@@ -130,19 +137,19 @@ export async function run(ctx) {
   }
 
   // Marker, die das Plugin selbst setzt, wenn beim Etikett etwas schiefging.
-  const snapshotKaputt = reif.filter((o) => gesetzt(o, '_lk24_snapshot_failed'));
+  const snapshotKaputt = druckOffen.filter((o) => gesetzt(o, '_lk24_snapshot_failed'));
   if (snapshotKaputt.length) {
     out.push(befund('snapshot', 'Etikett-Vorschau', 'alarm',
       `${snapshotKaputt.length} Bestellung(en) mit fehlgeschlagenem Snapshot (Foto fehlt womöglich im Druck): ${idListe(snapshotKaputt)}`,
       snapshotKaputt.map((o) => ({ id: o.id, nummer: o.number }))));
   }
-  const drift = reif.filter((o) => gesetzt(o, '_lk24_bg_drift'));
+  const drift = druckOffen.filter((o) => gesetzt(o, '_lk24_bg_drift'));
   if (drift.length) {
     out.push(befund('bgdrift', 'Hintergrundfarbe', 'warn',
       `${drift.length} Bestellung(en) mit Farb-Drift im Snapshot (Dark-Mode-Verdacht) — vor dem Druck ansehen: ${idListe(drift)}`,
       drift.map((o) => ({ id: o.id, nummer: o.number }))));
   }
-  const geheilt = reif.filter((o) => gesetzt(o, '_lk24_preview_healed'));
+  const geheilt = druckOffen.filter((o) => gesetzt(o, '_lk24_preview_healed'));
   if (geheilt.length) {
     out.push(befund('healed', 'Vorschau repariert', 'info',
       `${geheilt.length} Bestellung(en) wurden automatisch geheilt: ${idListe(geheilt)}`));
